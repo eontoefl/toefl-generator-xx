@@ -82,7 +82,9 @@ const FBGenerationValidator = {
         };
 
         try {
-            const lines = rawOutput.trim().split('\n').filter(l => l.trim());
+            // 마크다운 볼드(**) 제거
+            const cleanOutput = rawOutput.replace(/\*\*/g, '');
+            const lines = cleanOutput.trim().split('\n').filter(l => l.trim());
 
             // Topic 라벨 파싱
             const topicLine = lines.find(l => l.trim().startsWith('[Topic:'));
@@ -139,20 +141,17 @@ const FBGenerationValidator = {
             // 단어 수 계산 (빈칸 토큰도 1단어로 카운트)
             data.wordCount = data.passage.split(/\s+/).filter(w => w.length > 0).length;
 
-            // 정답 파싱
-            // 전체 텍스트에서 "정답:" 이후 부분 추출 (줄바꿈과 무관)
-            const answerMatch = rawOutput.match(/정답\s*:\s*(.+?)(?=\n|빈칸|세트\d+-|$)/s);
+            // 정답 파싱 (마크다운 제거된 cleanOutput 사용)
+            const answerMatch = cleanOutput.match(/정답\s*:\s*(.+?)(?=\n|빈칸|세트\d+-|$)/s);
             if (answerMatch) {
                 const answerPart = answerMatch[1].trim();
                 data.answers = answerPart.split(',').map(a => a.trim()).filter(a => a);
             }
 
             // 매핑 파싱 (세트X-Y: 토큰 → 정답)
-            // 한 줄에 여러 매핑이 이어져 있을 수 있음
-            const fullText = rawOutput;
             const mappingPatternGlobal = /세트\d+-(\d+):\s*(.+?)\s*→\s*(\S+)/g;
             let mappingMatch;
-            while ((mappingMatch = mappingPatternGlobal.exec(fullText)) !== null) {
+            while ((mappingMatch = mappingPatternGlobal.exec(cleanOutput)) !== null) {
                 data.mappings.push({
                     num: parseInt(mappingMatch[1]),
                     token: mappingMatch[2].trim(),
