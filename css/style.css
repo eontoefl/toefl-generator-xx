@@ -1666,6 +1666,46 @@ body {
     color: var(--accent-green);
 }
 
+/* Manual Feedback Section */
+.manual-feedback-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.manual-feedback-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.manual-feedback-label i {
+    margin-right: 4px;
+    color: var(--accent-purple);
+}
+
+.manual-feedback-input {
+    min-height: 70px;
+    font-size: 12px;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--radius);
+    transition: var(--transition);
+}
+
+.manual-feedback-input:focus {
+    border-color: var(--accent-purple);
+    background: rgba(167, 139, 250, 0.08);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
+
+.manual-feedback-input::placeholder {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
 /* Force Proceed Button */
 .force-proceed-btn {
     margin-top: 8px;
