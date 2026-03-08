@@ -26,7 +26,7 @@
             <a href="#" class="nav-item" data-step="2">
                 <i class="fas fa-robot"></i>
                 <span>2. AI 자동 생성</span>
-                <span class="nav-badge upcoming">SOON</span>
+                <span class="nav-badge ready">READY</span>
             </a>
             <a href="#" class="nav-item" data-step="3">
                 <i class="fas fa-shield-halved"></i>
@@ -209,153 +209,236 @@
 
         <!-- Step 2: AI 자동 생성 -->
         <section class="step-panel" id="step2">
-            <div class="step-layout">
-                <!-- Left: AI Config -->
-                <div class="panel-card input-panel">
-                    <div class="panel-header">
-                        <h3><i class="fas fa-robot"></i> AI 설정</h3>
+            <!-- Phase Tabs -->
+            <div class="phase-tabs">
+                <button class="phase-tab active" data-phase2="genPrompt">
+                    <span class="phase-num">1</span> 생성프롬
+                </button>
+                <button class="phase-tab" data-phase2="genResult">
+                    <span class="phase-num">2</span> 생성 검증
+                </button>
+                <button class="phase-tab" data-phase2="expPrompt">
+                    <span class="phase-num">3</span> 해설프롬
+                </button>
+                <button class="phase-tab" data-phase2="expResult">
+                    <span class="phase-num">4</span> 해설 검증
+                </button>
+                <button class="phase-tab" data-phase2="aiSave">
+                    <span class="phase-num">5</span> 저장
+                </button>
+            </div>
+
+            <!-- Phase 1: 생성프롬 입력 + 생성 -->
+            <div class="phase2-panel active" id="phase2GenPrompt">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-scroll"></i> 생성프롬프트</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>유형</label>
+                                <div class="type-grid">
+                                    <button class="type-btn active">Fill in the Blanks</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>생성 프롬프트 <span class="label-badge">붙여넣기</span></label>
+                                <textarea class="text-input" id="aiGenPrompt" rows="14" placeholder="생성프롬프트를 여기에 붙여넣으세요..."></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-full" id="btnAiGenerate">
+                                <i class="fas fa-paper-plane"></i> Claude에게 문제 생성 요청
+                            </button>
+                            <div id="aiGenLoading" class="ai-loading" style="display:none;">
+                                <div class="loading-spinner"></div>
+                                <span>Claude가 문제를 생성하고 있습니다...</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="panel-body">
-                        <!-- AI Model Selector -->
-                        <div class="form-group">
-                            <label>AI 모델 선택</label>
-                            <div class="model-selector">
-                                <button class="model-btn active">
-                                    <i class="fas fa-brain"></i>
-                                    <span>Claude</span>
-                                    <small>Anthropic</small>
-                                </button>
-                                <button class="model-btn">
-                                    <i class="fas fa-comments"></i>
-                                    <span>GPT-4</span>
-                                    <small>OpenAI</small>
-                                </button>
-                            </div>
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-info-circle"></i> 안내</h3>
                         </div>
-
-                        <!-- Type Selector -->
-                        <div class="form-group">
-                            <label>문제 유형</label>
-                            <select class="form-select">
-                                <option>Fill in the Blanks</option>
-                                <option>Daily 1</option>
-                                <option>Daily 2</option>
-                                <option>Academic</option>
-                                <option>Response</option>
-                                <option>Conversation</option>
-                                <option>Announcement</option>
-                                <option>Lecture</option>
-                                <option>Arrange</option>
-                                <option>Email</option>
-                                <option>Discussion</option>
-                                <option>Repeat</option>
-                                <option>Interview</option>
-                            </select>
+                        <div class="panel-body">
+                            <div class="guide-box">
+                                <h4><i class="fas fa-lightbulb"></i> 사용법</h4>
+                                <ol>
+                                    <li>왼쪽에 생성프롬프트를 붙여넣으세요</li>
+                                    <li><strong>생성 요청</strong> 버튼을 누르면 Claude가 문제를 만듭니다</li>
+                                    <li>생성된 문제가 <strong>자동 검증</strong>됩니다</li>
+                                    <li><span class="guide-pass">Pass</span>면 해설프롬으로 자동 이동합니다</li>
+                                    <li><span class="guide-fail">Fail</span>이면 피드백과 함께 <strong>재생성</strong>할 수 있습니다</li>
+                                </ol>
+                                <div class="guide-note">
+                                    <i class="fas fa-coins"></i>
+                                    <span>1회 생성 ≈ $0.01~0.03 (Sonnet 기준)</span>
+                                </div>
+                            </div>
+                            <div class="guide-box" style="margin-top:16px;">
+                                <h4><i class="fas fa-route"></i> 파이프라인</h4>
+                                <div class="pipeline-visual">
+                                    <div class="pipe-step current"><span class="pipe-num">1</span> 생성</div>
+                                    <div class="pipe-arrow"><i class="fas fa-chevron-right"></i></div>
+                                    <div class="pipe-step"><span class="pipe-num">2</span> 검증</div>
+                                    <div class="pipe-arrow"><i class="fas fa-chevron-right"></i></div>
+                                    <div class="pipe-step"><span class="pipe-num">3</span> 해설</div>
+                                    <div class="pipe-arrow"><i class="fas fa-chevron-right"></i></div>
+                                    <div class="pipe-step"><span class="pipe-num">4</span> 검증</div>
+                                    <div class="pipe-arrow"><i class="fas fa-chevron-right"></i></div>
+                                    <div class="pipe-step"><span class="pipe-num">5</span> 저장</div>
+                                </div>
+                            </div>
+                            <div id="aiUsageInfo" class="usage-info" style="display:none;"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
-                        <!-- Quantity -->
-                        <div class="form-group">
-                            <label>생성 수량</label>
-                            <div class="quantity-control">
-                                <button class="qty-btn">−</button>
-                                <input type="number" value="5" min="1" max="50" class="qty-input">
-                                <button class="qty-btn">+</button>
-                            </div>
+            <!-- Phase 2: 생성 결과 검증 -->
+            <div class="phase2-panel" id="phase2GenResult">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-file-lines"></i> AI 출력물</h3>
                         </div>
-
-                        <!-- Prompt Preview -->
-                        <div class="form-group">
-                            <label>프롬프트 미리보기</label>
-                            <div class="prompt-preview">
-                                <p class="prompt-text">당신은 TOEFL 문제 출제 전문가입니다. 다음 규칙에 따라 "Fill in the Blanks" 유형의 문제를 5개 생성하세요...</p>
-                                <span class="prompt-badge"><i class="fas fa-lock"></i> 고정 프롬프트</span>
-                            </div>
+                        <div class="panel-body">
+                            <textarea class="text-input code-editor" id="aiGenOutput" rows="20" readonly></textarea>
                         </div>
-
-                        <button class="btn btn-primary btn-full">
-                            <i class="fas fa-paper-plane"></i> AI에게 생성 요청
-                        </button>
-
-                        <!-- Progress -->
-                        <div class="generation-progress">
-                            <div class="progress-header">
-                                <span>생성 중...</span>
-                                <span>3 / 5</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: 60%"></div>
-                            </div>
-                            <div class="progress-stats">
-                                <span class="stat-pass"><i class="fas fa-check"></i> Pass: 2</span>
-                                <span class="stat-fail"><i class="fas fa-xmark"></i> Fail: 1</span>
-                                <span class="stat-pending"><i class="fas fa-hourglass"></i> 대기: 2</span>
+                    </div>
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-shield-halved"></i> 검증 결과</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="aiGenValidation" class="validation-result">
+                                <div class="result-placeholder">
+                                    <i class="fas fa-hourglass"></i>
+                                    <p>생성 대기 중</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Right: Results -->
-                <div class="panel-card output-panel">
-                    <div class="panel-header">
-                        <h3><i class="fas fa-list-check"></i> 생성 결과</h3>
-                        <div class="panel-actions">
-                            <button class="btn btn-sm btn-ghost"><i class="fas fa-download"></i> 전체 다운로드</button>
+            <!-- Phase 3: 해설프롬 입력 + 생성 -->
+            <div class="phase2-panel" id="phase2ExpPrompt">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-scroll"></i> 해설프롬프트</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>해설 프롬프트 <span class="label-badge">붙여넣기</span></label>
+                                <textarea class="text-input" id="aiExpPrompt" rows="10" placeholder="해설프롬프트를 여기에 붙여넣으세요...&#10;&#10;마지막에 &lt;문제&gt; 태그 안에 문제가 자동 삽입됩니다."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>생성된 문제 (자동 삽입) <span class="label-badge auto">자동</span></label>
+                                <textarea class="text-input code-editor" id="aiExpProblem" rows="6" readonly></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-full" id="btnAiExplain">
+                                <i class="fas fa-paper-plane"></i> Claude에게 해설 생성 요청
+                            </button>
+                            <div id="aiExpLoading" class="ai-loading" style="display:none;">
+                                <div class="loading-spinner"></div>
+                                <span>Claude가 해설을 생성하고 있습니다...</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="panel-body">
-                        <div class="result-list">
-                            <!-- Result Item - Pass -->
-                            <div class="result-item pass">
-                                <div class="result-header">
-                                    <span class="result-num">#1</span>
-                                    <span class="result-badge pass"><i class="fas fa-check-circle"></i> Pass</span>
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-info-circle"></i> 진행 상황</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="pipeline-status">
+                                <div class="pipeline-step done">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>문제 생성 완료</span>
                                 </div>
-                                <div class="result-preview">
-                                    <p>"The professor's lecture on quantum mechanics was so ___ that even..."</p>
+                                <div class="pipeline-step active">
+                                    <i class="fas fa-spinner fa-pulse"></i>
+                                    <span>해설 생성 대기</span>
                                 </div>
-                                <div class="result-actions">
-                                    <button class="btn btn-xs btn-ghost">미리보기</button>
-                                    <button class="btn btn-xs btn-ghost">JSON</button>
-                                    <button class="btn btn-xs btn-success">저장</button>
-                                </div>
-                            </div>
-
-                            <!-- Result Item - Fail -->
-                            <div class="result-item fail">
-                                <div class="result-header">
-                                    <span class="result-num">#2</span>
-                                    <span class="result-badge fail"><i class="fas fa-times-circle"></i> Fail</span>
-                                </div>
-                                <div class="result-preview">
-                                    <p class="fail-text">"Missing required field: explanation"</p>
-                                </div>
-                                <div class="result-actions">
-                                    <button class="btn btn-xs btn-ghost">상세 오류</button>
-                                    <button class="btn btn-xs btn-warning">재생성</button>
+                                <div class="pipeline-step">
+                                    <i class="fas fa-circle"></i>
+                                    <span>저장</span>
                                 </div>
                             </div>
+                            <div class="guide-box" style="margin-top:20px;">
+                                <h4><i class="fas fa-info-circle"></i> 참고</h4>
+                                <p style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:6px;">해설프롬 끝에 생성된 문제가 <code>&lt;문제&gt;...&lt;/문제&gt;</code> 태그로 자동 삽입됩니다. 프롬프트에 <code>&lt;문제&gt;</code> 태그를 별도로 넣을 필요 없습니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <!-- Result Item - Pass -->
-                            <div class="result-item pass">
-                                <div class="result-header">
-                                    <span class="result-num">#3</span>
-                                    <span class="result-badge pass"><i class="fas fa-check-circle"></i> Pass</span>
-                                </div>
-                                <div class="result-preview">
-                                    <p>"According to the passage, the primary reason for..."</p>
-                                </div>
-                                <div class="result-actions">
-                                    <button class="btn btn-xs btn-ghost">미리보기</button>
-                                    <button class="btn btn-xs btn-ghost">JSON</button>
-                                    <button class="btn btn-xs btn-success">저장</button>
+            <!-- Phase 4: 해설 결과 검증 -->
+            <div class="phase2-panel" id="phase2ExpResult">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-file-lines"></i> AI 해설 출력물</h3>
+                        </div>
+                        <div class="panel-body">
+                            <textarea class="text-input code-editor" id="aiExpOutput" rows="20" readonly></textarea>
+                        </div>
+                    </div>
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-shield-halved"></i> 검증 결과</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="aiExpValidation" class="validation-result">
+                                <div class="result-placeholder">
+                                    <i class="fas fa-hourglass"></i>
+                                    <p>해설 생성 대기 중</p>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
-                        <div class="output-actions">
-                            <button class="btn btn-success btn-full">
-                                <i class="fas fa-database"></i> Pass 항목 전체 저장 (2개)
-                            </button>
+            <!-- Phase 5: 저장 -->
+            <div class="phase2-panel" id="phase2AiSave">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-database"></i> 저장 정보</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>ID (자동 생성)</label>
+                                <input type="text" class="form-input" id="aiSaveId" readonly />
+                            </div>
+                            <div class="form-group">
+                                <label>passage_with_markers 미리보기</label>
+                                <div class="json-preview" id="aiSavePreview" style="min-height:200px; max-height:400px; overflow-y:auto;">
+                                    <p class="placeholder-text" style="padding:20px;">검증 완료 후 표시됩니다</p>
+                                </div>
+                            </div>
+                            <div class="save-actions">
+                                <button class="btn btn-success btn-full" id="btnAiSupabaseSave" disabled>
+                                    <i class="fas fa-cloud-arrow-up"></i> Supabase에 직접 INSERT
+                                </button>
+                                <div style="text-align:center; margin: 8px 0; color: var(--text-muted); font-size:11px;">또는</div>
+                                <button class="btn btn-primary btn-full" id="btnAiCopySQL">
+                                    <i class="fas fa-copy"></i> SQL INSERT문 복사
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-code"></i> SQL INSERT</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="json-preview" id="aiSqlOutput">
+                                <pre><code id="aiSqlCode">-- 검증 완료 후 자동 생성됩니다</code></pre>
+                            </div>
+                            <div id="aiSaveStatus"></div>
                         </div>
                     </div>
                 </div>
