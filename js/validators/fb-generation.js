@@ -131,8 +131,8 @@ const FBGenerationValidator = {
             // 문장 분리
             data.sentences = this.splitSentences(data.passage);
 
-            // 빈칸(결손 토큰) 추출
-            const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+/g;
+            // 빈칸(결손 토큰) 추출 (중간 결손도 하나의 토큰으로 잡기 위해 끝에 [a-zA-Z]* 추가)
+            const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+[a-zA-Z]*/g;
             let match;
             while ((match = blankPattern.exec(data.passage)) !== null) {
                 data.blanks.push(match[0]);
@@ -242,7 +242,7 @@ const FBGenerationValidator = {
     checkS1NoBlank(parsed) {
         if (parsed.sentences.length === 0) return {};
         const s1 = parsed.sentences[0];
-        const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+/g;
+        const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+[a-zA-Z]*/g;
         const blanks = s1.match(blankPattern);
         if (blanks && blanks.length > 0) {
             return { fail: true, message: `S1에 결손 ${blanks.length}개 발견 (0개여야 함)` };
@@ -253,7 +253,7 @@ const FBGenerationValidator = {
     /** S4 이후 결손 0개 검증 */
     checkS4PlusNoBlank(parsed) {
         if (parsed.sentences.length <= 3) return {};
-        const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+/g;
+        const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+[a-zA-Z]*/g;
         for (let i = 3; i < parsed.sentences.length; i++) {
             const blanks = parsed.sentences[i].match(blankPattern);
             if (blanks && blanks.length > 0) {
@@ -339,7 +339,7 @@ const FBGenerationValidator = {
         const words = parsed.passage.split(/\s+/);
         let consecutive = 0;
         let maxConsecutive = 0;
-        const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+/;
+        const blankPattern = /[a-zA-Z]+(?:_(?:\s_)*)+[a-zA-Z]*/;
 
         for (const word of words) {
             // 단어가 빈칸 토큰의 일부인지 확인 (언더스코어 포함)
