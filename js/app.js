@@ -235,8 +235,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 피드백 포함 프롬프트 (재생성 시)
         let finalPrompt = prompt;
-        if (isRetry && lastGenFailReasons.length > 0) {
-            finalPrompt += `\n\n[재생성 피드백]\n이전 생성에서 다음 오류가 발견되었습니다. 반드시 수정해주세요:\n${lastGenFailReasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+        if (isRetry) {
+            let feedbackParts = [];
+            // 자동 감지된 오류
+            if (lastGenFailReasons.length > 0) {
+                feedbackParts.push('[자동 감지 오류]\n' + lastGenFailReasons.map((r, i) => `${i + 1}. ${r}`).join('\n'));
+            }
+            // 수기 피드백
+            const manualEl = document.getElementById('manualFeedbackGen');
+            const manualFeedback = manualEl ? manualEl.value.trim() : '';
+            if (manualFeedback) {
+                feedbackParts.push('[사용자 추가 피드백]\n' + manualFeedback);
+            }
+            if (feedbackParts.length > 0) {
+                finalPrompt += `\n\n[재생성 피드백]\n이전 생성에서 문제가 발견되었습니다. 반드시 수정해주세요:\n\n${feedbackParts.join('\n\n')}`;
+            }
         }
 
         try {
@@ -329,8 +342,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let finalPrompt = prompt + `\n\n<문제>\n${aiGenRawForExp}\n</문제>`;
 
         // 재생성 피드백 삽입
-        if (isRetry && lastExpFailReasons.length > 0) {
-            finalPrompt += `\n\n[재생성 피드백]\n이전 해설에서 다음 오류가 발견되었습니다. 반드시 수정해주세요:\n${lastExpFailReasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+        if (isRetry) {
+            let feedbackParts = [];
+            if (lastExpFailReasons.length > 0) {
+                feedbackParts.push('[자동 감지 오류]\n' + lastExpFailReasons.map((r, i) => `${i + 1}. ${r}`).join('\n'));
+            }
+            const manualEl = document.getElementById('manualFeedbackExp');
+            const manualFeedback = manualEl ? manualEl.value.trim() : '';
+            if (manualFeedback) {
+                feedbackParts.push('[사용자 추가 피드백]\n' + manualFeedback);
+            }
+            if (feedbackParts.length > 0) {
+                finalPrompt += `\n\n[재생성 피드백]\n이전 해설에서 문제가 발견되었습니다. 반드시 수정해주세요:\n\n${feedbackParts.join('\n\n')}`;
+            }
         }
 
         try {
@@ -569,15 +593,28 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div>`;
         }
 
+        // 수기 피드백 입력칸 (PASS/FAIL 공통)
+        const feedbackId = type === 'gen' ? 'manualFeedbackGen' : 'manualFeedbackExp';
+        html += `<div class="manual-feedback-section">
+            <label class="manual-feedback-label"><i class="fas fa-pen"></i> 수기 피드백 (선택사항)</label>
+            <textarea class="text-input manual-feedback-input" id="${feedbackId}" rows="3" placeholder="검증기가 못 잡는 문제가 있으면 여기에 직접 작성하세요...&#10;예: 이 문장이 부자연스럽다, 단어 수준이 안 맞다 등"></textarea>
+        </div>`;
+
         // Action buttons based on result
         if (result.pass) {
             if (type === 'gen') {
-                html += `<button class="btn btn-success btn-full" style="margin-top:16px;" id="btnGoToExpPrompt">
+                html += `<button class="btn btn-success btn-full" style="margin-top:12px;" id="btnGoToExpPrompt">
                     <i class="fas fa-arrow-right"></i> 다음: 해설프롬 단계로 이동
+                </button>
+                <button class="btn btn-warning btn-full" style="margin-top:8px;" id="btnRetryGen">
+                    <i class="fas fa-rotate-right"></i> 피드백 포함 재생성
                 </button>`;
             } else if (type === 'exp') {
-                html += `<button class="btn btn-success btn-full" style="margin-top:16px;" id="btnGoToAiSave">
+                html += `<button class="btn btn-success btn-full" style="margin-top:12px;" id="btnGoToAiSave">
                     <i class="fas fa-arrow-right"></i> 다음: 저장 단계로 이동
+                </button>
+                <button class="btn btn-warning btn-full" style="margin-top:8px;" id="btnRetryExp">
+                    <i class="fas fa-rotate-right"></i> 피드백 포함 재생성
                 </button>`;
             }
         } else {
@@ -586,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `<div class="retry-section">
                     <div class="retry-info">
                         <i class="fas fa-rotate"></i>
-                        <span>위 오류 사유가 피드백으로 Claude에게 전달됩니다</span>
+                        <span>자동 감지 오류 + 수기 피드백이 Claude에게 전달됩니다</span>
                     </div>
                     <button class="btn btn-warning btn-full" id="btnRetryGen">
                         <i class="fas fa-rotate-right"></i> 피드백 포함 재생성
@@ -599,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `<div class="retry-section">
                     <div class="retry-info">
                         <i class="fas fa-rotate"></i>
-                        <span>위 오류 사유가 피드백으로 Claude에게 전달됩니다</span>
+                        <span>자동 감지 오류 + 수기 피드백이 Claude에게 전달됩니다</span>
                     </div>
                     <button class="btn btn-warning btn-full" id="btnRetryExp">
                         <i class="fas fa-rotate-right"></i> 피드백 포함 재생성
