@@ -581,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>`;
             }
         } else {
-            // Fail: 재생성 버튼
+            // Fail: 재생성 버튼 + 강제 진행 버튼
             if (type === 'gen') {
                 html += `<div class="retry-section">
                     <div class="retry-info">
@@ -590,6 +590,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <button class="btn btn-warning btn-full" id="btnRetryGen">
                         <i class="fas fa-rotate-right"></i> 피드백 포함 재생성
+                    </button>
+                    <button class="btn btn-ghost btn-full force-proceed-btn" id="btnForceGen">
+                        <i class="fas fa-forward"></i> 오류 무시하고 해설 단계로 강제 진행
                     </button>
                 </div>`;
             } else if (type === 'exp') {
@@ -600,6 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <button class="btn btn-warning btn-full" id="btnRetryExp">
                         <i class="fas fa-rotate-right"></i> 피드백 포함 재생성
+                    </button>
+                    <button class="btn btn-ghost btn-full force-proceed-btn" id="btnForceExp">
+                        <i class="fas fa-forward"></i> 오류 무시하고 저장 단계로 강제 진행
                     </button>
                 </div>`;
             }
@@ -631,6 +637,30 @@ document.addEventListener('DOMContentLoaded', () => {
             btnRetryExp.addEventListener('click', () => {
                 const prompt = aiExpPromptEl.value.trim();
                 if (prompt) runExplanation(prompt, true);
+            });
+        }
+
+        // 강제 진행 버튼
+        const btnForceGen = document.getElementById('btnForceGen');
+        if (btnForceGen) {
+            btnForceGen.addEventListener('click', () => {
+                aiGenRawForExp = extractPassageSection(aiGenOutput);
+                document.getElementById('aiExpProblem').value = aiGenRawForExp;
+                markPhase2TabDone('genResult');
+                updatePipelineStatus('expReady');
+                activatePhase2Tab('expPrompt');
+                showToast('강제 진행: 해설 단계로 이동합니다', 'success');
+            });
+        }
+
+        const btnForceExp = document.getElementById('btnForceExp');
+        if (btnForceExp) {
+            btnForceExp.addEventListener('click', () => {
+                markPhase2TabDone('expResult');
+                prepareAiSavePhase(aiExpOutput);
+                updatePipelineStatus('saveReady');
+                activatePhase2Tab('aiSave');
+                showToast('강제 진행: 저장 단계로 이동합니다', 'success');
             });
         }
     }
