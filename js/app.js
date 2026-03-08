@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentExpParsed = null;  // 해설프롬 검증 통과 데이터
     let currentExpRaw = null;     // 해설프롬 원본 텍스트
     let nextSetNumber = 15;       // fillblank_set_XXXX 다음 번호
+    let nextDaily1SetNumber = 11; // daily1_set_XXXX 다음 번호
+    let currentType = 'fill_in_the_blanks'; // 현재 선택된 유형
 
     // Step 2 State
     let aiGenOutput = null;       // AI 생성프롬 출력물
@@ -146,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const result = FBGenerationValidator.validate(raw);
+        const result = getGenValidator().validate(raw);
         currentGenParsed = result.pass ? result.parsed : null;
         renderValidationResult(genResult, result, 'gen');
 
@@ -173,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const result = FBExplanationValidator.validate(raw);
+        const result = getExpValidator().validate(raw);
         currentExpParsed = result.pass ? result.parsed : null;
         currentExpRaw = result.pass ? raw : null;
         renderValidationResult(expResult, result, 'exp');
@@ -282,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 자동 검증
-            const valResult = FBGenerationValidator.validate(aiGenOutput);
+            const valResult = getGenValidator().validate(aiGenOutput);
             aiGenParsed = valResult.pass ? valResult.parsed : null;
             renderAiValidationResult(resultEl, valResult, 'gen');
 
@@ -364,7 +366,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: finalPrompt,
-                    system: '당신은 TOEFL 전문 강사입니다. 주어진 규칙에 따라 문제 해설을 생성하세요. 반드시 지정된 {{}} 마커 형식을 사용하세요.'
+                    system: currentType === 'daily1'
+                        ? '당신은 TOEFL 전문 강사입니다. 주어진 규칙에 따라 문제 해설을 생성하세요. 반드시 ===MAIN_TITLE===, ===PASSAGE_TITLE===, ===PASSAGE_CONTENT===, ===SENTENCE_TRANSLATIONS===, ===INTERACTIVE_WORDS===, ===QUESTION1===, ===QUESTION2=== 태그 형식으로 출력하세요.'
+                        : '당신은 TOEFL 전문 강사입니다. 주어진 규칙에 따라 문제 해설을 생성하세요. 반드시 지정된 {{}} 마커 형식을 사용하세요.'
                 })
             });
 
@@ -386,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 자동 검증
-            const valResult = FBExplanationValidator.validate(aiExpOutput);
+            const valResult = getExpValidator().validate(aiExpOutput);
             aiExpParsed = valResult.pass ? valResult.parsed : null;
             renderAiValidationResult(resultEl, valResult, 'exp');
 
@@ -421,12 +425,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnAiSupabaseSave.addEventListener('click', async () => {
-        await supabaseInsert('aiSaveId', aiExpOutput, 'btnAiSupabaseSave', 'aiSaveStatus');
+        if (currentType === 'daily1') {
+            await supabaseInsertDaily1('aiSaveId', aiExpOutput, 'btnAiSupabaseSave', 'aiSaveStatus');
+        } else {
+            await supabaseInsert('aiSaveId', aiExpOutput, 'btnAiSupabaseSave', 'aiSaveStatus');
+        }
     });
 
     // ============================================
     // AI Helper Functions
     // ============================================
+
+    /** 현재 유형에 맞는 생성프롬 검증기 반환 */
+    function getGenValidator() {
+        if (currentType === 'daily1') return Daily1GenerationValidator;
+        return FBGenerationValidator;
+    }
+
+    /** 현재 유형에 맞는 해설프롬 검증기 반환 */
+    function getExpValidator() {
+        if (currentType === 'daily1') return Daily1ExplanationValidator;
+        return FBExplanationValidator;
+    }
 
     function getApiEndpoint() {
         const saved = localStorage.getItem('ai_api_endpoint');
@@ -489,6 +509,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepareAiSavePhase(passageText) {
+        if (currentType === 'daily1') {
+            prepareDaily1SavePhase(passageText);
+            return;
+        }
+
         const id = `fillblank_set_${String(nextSetNumber).padStart(4, '0')}`;
         document.getElementById('aiSaveId').value = id;
 
@@ -498,6 +523,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const escapedText = passageText.replace(/'/g, "''");
         const sql = `INSERT INTO tr_reading_fillblanks (id, passage_with_markers)\nVALUES ('${id}', '${escapedText}');`;
+        document.getElementById('aiSqlCode').textContent = sql;
+
+        const supabaseUrl = localStorage.getItem('supabase_url');
+        const supabaseKey = localStorage.getItem('supabase_anon_key');
+        document.getElementById('btnAiSupabaseSave').disabled = !(supabaseUrl && supabaseKey);
+    }
+
+    function prepareDaily1SavePhase(passageText) {
+        // 해설프롬 검증기의 파싱 결과에서 Supabase 데이터 추출
+        const valResult = Daily1ExplanationValidator.validate(passageText);
+        const supaData = valResult.parsed?.supabaseData || {};
+
+        const id = `daily1_set_${String(nextDaily1SetNumber).padStart(4, '0')}`;
+        document.getElementById('aiSaveId').value = id;
+
+        const preview = document.getElementById('aiSavePreview');
+        const previewText = `ID: ${id}\nmain_title: ${supaData.main_title || ''}\npassage_title: ${supaData.passage_title || ''}\npassage_content: ${(supaData.passage_content || '').substring(0, 200)}...\nsentence_translations: ${(supaData.sentence_translations || '').substring(0, 200)}...\ninteractive_words: ${(supaData.interactive_words || '').substring(0, 200)}...\nquestion1: ${(supaData.question1 || '').substring(0, 200)}...\nquestion2: ${(supaData.question2 || '').substring(0, 200)}...`;
+        preview.innerHTML = `<pre style="white-space:pre-wrap; word-break:break-all; font-size:11px; color:var(--accent-green); font-family:'Fira Code',monospace;">${escapeHtml(previewText)}</pre>`;
+
+        // SQL 생성
+        const esc = (s) => (s || '').replace(/'/g, "''");
+        const sql = `INSERT INTO tr_reading_daily1 (id, main_title, passage_title, passage_content, sentence_translations, interactive_words, question1, question2)\nVALUES (\n  '${id}',\n  '${esc(supaData.main_title)}',\n  '${esc(supaData.passage_title)}',\n  '${esc(supaData.passage_content)}',\n  '${esc(supaData.sentence_translations)}',\n  '${esc(supaData.interactive_words)}',\n  '${esc(supaData.question1)}',\n  '${esc(supaData.question2)}'\n);`;
         document.getElementById('aiSqlCode').textContent = sql;
 
         const supabaseUrl = localStorage.getItem('supabase_url');
@@ -541,56 +588,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Parsed summary (생성프롬)
         if (type === 'gen' && result.parsed && !result.parsed.error) {
-            const p = result.parsed;
-            html += `<div class="parsed-summary">
-                <h4>파싱 요약</h4>
-                <div class="summary-grid">
-                    <div class="summary-item"><div class="val">${p.blanks?.length || 0}</div><div class="label">결손 토큰</div></div>
-                    <div class="summary-item"><div class="val">${p.answers?.length || 0}</div><div class="label">정답</div></div>
-                    <div class="summary-item"><div class="val">${p.mappings?.length || 0}</div><div class="label">매핑</div></div>
-                    <div class="summary-item"><div class="val">${p.wordCount || 0}</div><div class="label">단어 수</div></div>
-                    <div class="summary-item"><div class="val">${p.sentences?.length || 0}</div><div class="label">문장 수</div></div>
-                </div>`;
-            if (p.mappings && p.mappings.length > 0) {
-                html += `<table class="marker-table" style="margin-top:12px;">
-                    <tr><th>#</th><th>토큰</th><th>정답</th><th>완성 단어</th></tr>`;
-                for (const m of p.mappings) {
-                    const completed = m.token.replace(/_[\s_]*/g, '') + m.answer;
-                    html += `<tr>
-                        <td>${m.num}</td>
-                        <td>${escapeHtml(m.token)}</td>
-                        <td>${escapeHtml(m.answer)}</td>
-                        <td><span class="marker-word">${escapeHtml(completed)}</span></td>
-                    </tr>`;
-                }
-                html += `</table>`;
-            }
-            html += `</div>`;
+            html += renderGenParsedSummary(result.parsed);
         }
 
         // Parsed summary (해설프롬)
         if (type === 'exp' && result.parsed && !result.parsed.error) {
-            const p = result.parsed;
-            html += `<div class="parsed-summary">
-                <h4>마커 요약</h4>
-                <div class="summary-grid">
-                    <div class="summary-item"><div class="val">${p.markers?.length || 0}</div><div class="label">마커 수</div></div>
-                    <div class="summary-item"><div class="val">${p.markers?.filter(m => m.hasWrongAnswer).length || 0}</div><div class="label">오답 포함</div></div>
-                </div>`;
-            if (p.markers && p.markers.length > 0) {
-                html += `<table class="marker-table" style="margin-top:12px;">
-                    <tr><th>#</th><th>완성 단어</th><th>해설 길이</th><th>오답</th></tr>`;
-                for (const m of p.markers) {
-                    html += `<tr>
-                        <td>${m.index}</td>
-                        <td><span class="marker-word">${escapeHtml(m.completedWord)}</span></td>
-                        <td>${m.explanation.length}자</td>
-                        <td>${m.hasWrongAnswer ? `<span class="marker-has-wrong">${escapeHtml(m.wrongAnswer)}</span>` : '-'}</td>
-                    </tr>`;
-                }
-                html += `</table>`;
-            }
-            html += `</div>`;
+            html += renderExpParsedSummary(result.parsed);
         }
 
         // 수기 피드백 입력칸 (PASS/FAIL 공통)
@@ -702,6 +705,154 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /** 생성프롬 파싱 요약 렌더링 (유형에 따라 분기) */
+    function renderGenParsedSummary(p) {
+        let html = '';
+        if (currentType === 'daily1') {
+            // Daily1: 세트별 요약
+            html += `<div class="parsed-summary">
+                <h4>파싱 요약 (Daily1)</h4>
+                <div class="summary-grid">
+                    <div class="summary-item"><div class="val">${p.setCount || 0}</div><div class="label">세트 수</div></div>
+                </div>`;
+            if (p.sets && p.sets.length > 0) {
+                for (const s of p.sets) {
+                    if (s.error) {
+                        html += `<div class="error-item" style="margin-top:8px;"><i class="fas fa-circle"></i><span>[세트${s.setNum}] ${escapeHtml(s.error)}</span></div>`;
+                        continue;
+                    }
+                    html += `<div style="margin-top:12px; padding:10px; background:rgba(139,92,246,0.08); border-radius:8px;">`;
+                    html += `<h5 style="margin:0 0 8px; color:var(--accent-purple);">세트 ${s.setNum}: ${escapeHtml(s.mainTitle || '?')} (${escapeHtml(s.topic || '?')})</h5>`;
+                    html += `<div class="summary-grid">
+                        <div class="summary-item"><div class="val">${s.type || '?'}</div><div class="label">유형</div></div>
+                        <div class="summary-item"><div class="val">${s.passageWordCount}</div><div class="label">지문 단어</div></div>
+                        <div class="summary-item"><div class="val">${s.questions?.length || 0}</div><div class="label">문항 수</div></div>
+                        <div class="summary-item"><div class="val">${s.answerKey ? (s.answerKey.q1 || '?') + '/' + (s.answerKey.q2 || '?') : '?'}</div><div class="label">정답 (Q1/Q2)</div></div>
+                    </div>`;
+                    // 문항 테이블
+                    if (s.questions && s.questions.length > 0) {
+                        html += `<table class="marker-table" style="margin-top:8px;">
+                            <tr><th>Q#</th><th>질문</th><th>보기수</th></tr>`;
+                        for (let qi = 0; qi < s.questions.length; qi++) {
+                            const q = s.questions[qi];
+                            const qText = q.question.length > 60 ? q.question.substring(0, 60) + '…' : q.question;
+                            html += `<tr><td>Q${qi + 1}</td><td>${escapeHtml(qText)}</td><td>${q.options.length}</td></tr>`;
+                        }
+                        html += `</table>`;
+                    }
+                    html += `</div>`;
+                }
+            }
+            html += `</div>`;
+        } else {
+            // Fill in the Blanks (기존)
+            html += `<div class="parsed-summary">
+                <h4>파싱 요약</h4>
+                <div class="summary-grid">
+                    <div class="summary-item"><div class="val">${p.blanks?.length || 0}</div><div class="label">결손 토큰</div></div>
+                    <div class="summary-item"><div class="val">${p.answers?.length || 0}</div><div class="label">정답</div></div>
+                    <div class="summary-item"><div class="val">${p.mappings?.length || 0}</div><div class="label">매핑</div></div>
+                    <div class="summary-item"><div class="val">${p.wordCount || 0}</div><div class="label">단어 수</div></div>
+                    <div class="summary-item"><div class="val">${p.sentences?.length || 0}</div><div class="label">문장 수</div></div>
+                </div>`;
+            if (p.mappings && p.mappings.length > 0) {
+                html += `<table class="marker-table" style="margin-top:12px;">
+                    <tr><th>#</th><th>토큰</th><th>정답</th><th>완성 단어</th></tr>`;
+                for (const m of p.mappings) {
+                    const completed = m.token.replace(/_[\s_]*/g, '') + m.answer;
+                    html += `<tr>
+                        <td>${m.num}</td>
+                        <td>${escapeHtml(m.token)}</td>
+                        <td>${escapeHtml(m.answer)}</td>
+                        <td><span class="marker-word">${escapeHtml(completed)}</span></td>
+                    </tr>`;
+                }
+                html += `</table>`;
+            }
+            html += `</div>`;
+        }
+        return html;
+    }
+
+    /** 해설프롬 파싱 요약 렌더링 (유형에 따라 분기) */
+    function renderExpParsedSummary(p) {
+        let html = '';
+        if (currentType === 'daily1') {
+            // Daily1: ===태그=== 기반 요약
+            html += `<div class="parsed-summary">
+                <h4>파싱 요약 (Daily1 해설)</h4>
+                <div class="summary-grid">
+                    <div class="summary-item"><div class="val">${p.foundTags?.length || 0}</div><div class="label">태그 수</div></div>
+                    <div class="summary-item"><div class="val">${p.interactiveWords?.length || 0}</div><div class="label">어휘 수</div></div>
+                    <div class="summary-item"><div class="val">${p.question1 && !p.question1.error ? '✅' : '❌'}</div><div class="label">Q1 파싱</div></div>
+                    <div class="summary-item"><div class="val">${p.question2 && !p.question2.error ? '✅' : '❌'}</div><div class="label">Q2 파싱</div></div>
+                </div>`;
+            // 발견된 태그 목록
+            if (p.foundTags && p.foundTags.length > 0) {
+                html += `<div style="margin-top:8px;"><strong style="color:var(--accent-purple);">발견된 태그:</strong> ${p.foundTags.map(t => `<code style="font-size:11px;">${t}</code>`).join(' → ')}</div>`;
+            }
+            // MAIN_TITLE, PASSAGE_TITLE 미리보기
+            html += `<div style="margin-top:8px; font-size:12px;">`;
+            if (p.mainTitle) html += `<div><strong>대제목:</strong> ${escapeHtml(p.mainTitle)}</div>`;
+            if (p.passageTitle) html += `<div><strong>지문제목:</strong> ${escapeHtml(p.passageTitle)}</div>`;
+            html += `</div>`;
+            // 어휘 테이블
+            if (p.interactiveWords && p.interactiveWords.length > 0) {
+                html += `<table class="marker-table" style="margin-top:12px;">
+                    <tr><th>#</th><th>표현</th><th>뜻</th><th>설명 길이</th></tr>`;
+                for (let i = 0; i < p.interactiveWords.length; i++) {
+                    const w = p.interactiveWords[i];
+                    html += `<tr><td>${i + 1}</td><td>${escapeHtml(w.expression)}</td><td>${escapeHtml(w.meaning)}</td><td>${w.explanation.length}자</td></tr>`;
+                }
+                html += `</table>`;
+            }
+            // 문항 요약
+            for (const qKey of ['question1', 'question2']) {
+                const q = p[qKey];
+                const qNum = qKey === 'question1' ? 1 : 2;
+                if (q && !q.error) {
+                    html += `<div style="margin-top:10px; padding:8px; background:rgba(139,92,246,0.06); border-radius:6px;">`;
+                    html += `<strong style="color:var(--accent-purple);">Q${qNum}</strong> (정답: ${q.answerLetter || '?'})<br>`;
+                    html += `<span style="font-size:12px;">${escapeHtml(q.questionEn?.substring(0, 80) || '')}</span><br>`;
+                    html += `<span style="font-size:11px; color:var(--text-muted);">${escapeHtml(q.questionKo?.substring(0, 80) || '')}</span>`;
+                    if (q.options && q.options.length > 0) {
+                        html += `<div style="margin-top:4px; font-size:11px;">`;
+                        for (const opt of q.options) {
+                            const isAnswer = opt.letter === q.answerLetter;
+                            html += `<div style="${isAnswer ? 'color:var(--accent-green); font-weight:600;' : ''}">(${opt.letter}) ${escapeHtml(opt.textEn?.substring(0, 50) || '')} ${opt.explanation ? '✓해설' : '✗해설없음'}</div>`;
+                        }
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                }
+            }
+            html += `</div>`;
+        } else {
+            // Fill in the Blanks (기존 마커 요약)
+            html += `<div class="parsed-summary">
+                <h4>마커 요약</h4>
+                <div class="summary-grid">
+                    <div class="summary-item"><div class="val">${p.markers?.length || 0}</div><div class="label">마커 수</div></div>
+                    <div class="summary-item"><div class="val">${p.markers?.filter(m => m.hasWrongAnswer).length || 0}</div><div class="label">오답 포함</div></div>
+                </div>`;
+            if (p.markers && p.markers.length > 0) {
+                html += `<table class="marker-table" style="margin-top:12px;">
+                    <tr><th>#</th><th>완성 단어</th><th>해설 길이</th><th>오답</th></tr>`;
+                for (const m of p.markers) {
+                    html += `<tr>
+                        <td>${m.index}</td>
+                        <td><span class="marker-word">${escapeHtml(m.completedWord)}</span></td>
+                        <td>${m.explanation.length}자</td>
+                        <td>${m.hasWrongAnswer ? `<span class="marker-has-wrong">${escapeHtml(m.wrongAnswer)}</span>` : '-'}</td>
+                    </tr>`;
+                }
+                html += `</table>`;
+            }
+            html += `</div>`;
+        }
+        return html;
+    }
+
     function renderErrorBanner(message) {
         return `<div class="result-banner fail">
             <i class="fas fa-exclamation-triangle"></i>
@@ -769,56 +920,12 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div>`;
         }
 
+        // 파싱 요약: 공통 함수 사용
         if (type === 'gen' && result.parsed && !result.parsed.error) {
-            const p = result.parsed;
-            html += `<div class="parsed-summary">
-                <h4>파싱 요약</h4>
-                <div class="summary-grid">
-                    <div class="summary-item"><div class="val">${p.blanks?.length || 0}</div><div class="label">결손 토큰</div></div>
-                    <div class="summary-item"><div class="val">${p.answers?.length || 0}</div><div class="label">정답</div></div>
-                    <div class="summary-item"><div class="val">${p.mappings?.length || 0}</div><div class="label">매핑</div></div>
-                    <div class="summary-item"><div class="val">${p.wordCount || 0}</div><div class="label">단어 수</div></div>
-                    <div class="summary-item"><div class="val">${p.sentences?.length || 0}</div><div class="label">문장 수</div></div>
-                </div>`;
-            if (p.mappings && p.mappings.length > 0) {
-                html += `<table class="marker-table" style="margin-top:12px;">
-                    <tr><th>#</th><th>토큰</th><th>정답</th><th>완성 단어</th></tr>`;
-                for (const m of p.mappings) {
-                    const completed = m.token.replace(/_[\s_]*/g, '') + m.answer;
-                    html += `<tr>
-                        <td>${m.num}</td>
-                        <td>${escapeHtml(m.token)}</td>
-                        <td>${escapeHtml(m.answer)}</td>
-                        <td><span class="marker-word">${escapeHtml(completed)}</span></td>
-                    </tr>`;
-                }
-                html += `</table>`;
-            }
-            html += `</div>`;
+            html += renderGenParsedSummary(result.parsed);
         }
-
         if (type === 'exp' && result.parsed && !result.parsed.error) {
-            const p = result.parsed;
-            html += `<div class="parsed-summary">
-                <h4>마커 요약</h4>
-                <div class="summary-grid">
-                    <div class="summary-item"><div class="val">${p.markers?.length || 0}</div><div class="label">마커 수</div></div>
-                    <div class="summary-item"><div class="val">${p.markers?.filter(m => m.hasWrongAnswer).length || 0}</div><div class="label">오답 포함</div></div>
-                </div>`;
-            if (p.markers && p.markers.length > 0) {
-                html += `<table class="marker-table" style="margin-top:12px;">
-                    <tr><th>#</th><th>완성 단어</th><th>해설 길이</th><th>오답</th></tr>`;
-                for (const m of p.markers) {
-                    html += `<tr>
-                        <td>${m.index}</td>
-                        <td><span class="marker-word">${escapeHtml(m.completedWord)}</span></td>
-                        <td>${m.explanation.length}자</td>
-                        <td>${m.hasWrongAnswer ? `<span class="marker-has-wrong">${escapeHtml(m.wrongAnswer)}</span>` : '-'}</td>
-                    </tr>`;
-                }
-                html += `</table>`;
-            }
-            html += `</div>`;
+            html += renderExpParsedSummary(result.parsed);
         }
 
         if (result.pass) {
@@ -873,6 +980,63 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 showSaveStatus(statusId, `✅ 저장 완료! ID: ${id}`, 'success');
                 nextSetNumber++;
+                btn.innerHTML = '<i class="fas fa-check"></i> 저장 완료';
+            } else {
+                const err = await response.json();
+                showSaveStatus(statusId, `❌ 저장 실패: ${err.message || response.statusText}`, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Supabase에 직접 INSERT';
+            }
+        } catch (e) {
+            showSaveStatus(statusId, `❌ 네트워크 오류: ${e.message}`, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Supabase에 직접 INSERT';
+        }
+    }
+
+    async function supabaseInsertDaily1(idFieldId, passageText, btnId, statusId) {
+        const supabaseUrl = localStorage.getItem('supabase_url');
+        const supabaseKey = localStorage.getItem('supabase_anon_key');
+
+        if (!supabaseUrl || !supabaseKey) {
+            showSaveStatus(statusId, '설정 페이지에서 Supabase URL과 Anon Key를 먼저 입력해주세요.', 'error');
+            return;
+        }
+
+        const id = document.getElementById(idFieldId).value;
+        const btn = document.getElementById(btnId);
+
+        // 해설프롬 파싱으로 Supabase 데이터 추출
+        const valResult = Daily1ExplanationValidator.validate(passageText);
+        const supaData = valResult.parsed?.supabaseData || {};
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+
+            const response = await fetch(`${supabaseUrl}/rest/v1/tr_reading_daily1`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({
+                    id: id,
+                    main_title: supaData.main_title || '',
+                    passage_title: supaData.passage_title || '',
+                    passage_content: supaData.passage_content || '',
+                    sentence_translations: supaData.sentence_translations || '',
+                    interactive_words: supaData.interactive_words || '',
+                    question1: supaData.question1 || '',
+                    question2: supaData.question2 || '',
+                })
+            });
+
+            if (response.ok) {
+                showSaveStatus(statusId, `✅ 저장 완료! ID: ${id}`, 'success');
+                nextDaily1SetNumber++;
                 btn.innerHTML = '<i class="fas fa-check"></i> 저장 완료';
             } else {
                 const err = await response.json();
@@ -982,6 +1146,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Other step interactions
     // ============================================
+
+    // 유형 선택 버튼 (type-btn)
+    const allTypeBtns = document.querySelectorAll('.type-btn');
+    allTypeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // 같은 type-grid 내의 버튼들만 토글
+            const grid = btn.closest('.type-grid');
+            if (grid) {
+                grid.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            }
+            btn.classList.add('active');
+            // 모든 type-grid의 같은 data-type 버튼도 동기화
+            const selectedType = btn.dataset.type;
+            if (selectedType) {
+                currentType = selectedType;
+                document.querySelectorAll(`.type-btn[data-type="${selectedType}"]`).forEach(b => {
+                    b.classList.add('active');
+                    const siblingGrid = b.closest('.type-grid');
+                    if (siblingGrid) {
+                        siblingGrid.querySelectorAll('.type-btn').forEach(s => {
+                            if (s.dataset.type !== selectedType) s.classList.remove('active');
+                        });
+                    }
+                });
+            }
+        });
+    });
+
     const vTabs = document.querySelectorAll('.v-tab');
     vTabs.forEach(tab => {
         tab.addEventListener('click', () => {
