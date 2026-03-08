@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOEFL Admin - 문제 생성 관리 시스템</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>TOEFL Admin</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-step="1">
+                <i class="fas fa-paste"></i>
+                <span>1. 붙여넣기 → JSON</span>
+                <span class="nav-badge ready">READY</span>
+            </a>
+            <a href="#" class="nav-item" data-step="2">
+                <i class="fas fa-robot"></i>
+                <span>2. AI 자동 생성</span>
+                <span class="nav-badge upcoming">SOON</span>
+            </a>
+            <a href="#" class="nav-item" data-step="3">
+                <i class="fas fa-shield-halved"></i>
+                <span>3. 자동 검증</span>
+                <span class="nav-badge upcoming">SOON</span>
+            </a>
+            <a href="#" class="nav-item" data-step="4">
+                <i class="fas fa-sliders"></i>
+                <span>4. 프롬프트 편집</span>
+                <span class="nav-badge upcoming">SOON</span>
+            </a>
+            <div class="nav-divider"></div>
+            <a href="#" class="nav-item" data-step="history">
+                <i class="fas fa-clock-rotate-left"></i>
+                <span>생성 히스토리</span>
+            </a>
+            <a href="#" class="nav-item" data-step="settings">
+                <i class="fas fa-gear"></i>
+                <span>설정</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="env-badge">
+                <i class="fas fa-circle"></i> Development
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <button class="menu-toggle" id="menuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="top-bar-title">
+                <h1 id="pageTitle">1단계: 붙여넣기 → JSON 변환</h1>
+                <p id="pageDesc">문제와 해설을 붙여넣으면 Supabase용 JSON으로 변환합니다</p>
+            </div>
+            <div class="top-bar-actions">
+                <span class="status-pill">
+                    <i class="fas fa-database"></i> Supabase 연결됨
+                </span>
+            </div>
+        </header>
+
+        <!-- Step 1: 붙여넣기 → 검증 → 저장 -->
+        <section class="step-panel active" id="step1">
+            <!-- Phase Tabs -->
+            <div class="phase-tabs">
+                <button class="phase-tab active" data-phase="gen">
+                    <span class="phase-num">1</span> 생성프롬 출력물 검증
+                </button>
+                <button class="phase-tab" data-phase="exp" id="phaseExpTab">
+                    <span class="phase-num">2</span> 해설프롬 출력물 검증
+                </button>
+                <button class="phase-tab" data-phase="save" id="phaseSaveTab">
+                    <span class="phase-num">3</span> Supabase 저장
+                </button>
+            </div>
+
+            <!-- Phase 1: 생성프롬 검증 -->
+            <div class="phase-panel active" id="phaseGen">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-file-import"></i> 생성프롬 출력물 붙여넣기</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>유형</label>
+                                <div class="type-grid">
+                                    <button class="type-btn active" data-type="fill_in_the_blanks">Fill in the Blanks</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>생성프롬 출력물</label>
+                                <textarea class="text-input" id="genInput" placeholder="생성프롬 출력물을 여기에 붙여넣으세요...&#10;&#10;예시:&#10;[Topic: Pollination | 꽃가루받이의 정의와 역할]&#10;세트1 (Questions 1-10)&#10;Fill in the missing letters in the paragraph. (Questions 1-10)&#10;&#10;Pollination is the transfer of pollen from one part...&#10;&#10;정답: iers, e, en, erent, le, ing, nd, eads, ough, ch&#10;&#10;세트1-1: Carr_ _ _ _ → iers&#10;..." rows="18"></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-full" id="btnValidateGen">
+                                <i class="fas fa-shield-halved"></i> 생성프롬 검증 실행
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-list-check"></i> 검증 결과</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="genResult" class="validation-result">
+                                <div class="result-placeholder">
+                                    <i class="fas fa-arrow-left"></i>
+                                    <p>왼쪽에 생성프롬 출력물을 붙여넣고<br>검증 버튼을 눌러주세요</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: 해설프롬 검증 -->
+            <div class="phase-panel" id="phaseExp">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-file-import"></i> 해설프롬 출력물 붙여넣기</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>해설프롬 출력물 (passage_with_markers)</label>
+                                <textarea class="text-input" id="expInput" placeholder="해설프롬 출력물을 여기에 붙여넣으세요...&#10;&#10;예시:&#10;Pollination is the transfer of pollen from one part of a flower to another, a step that allows many plants to produce seeds. {{Carr|iers|해설...}} such as bees..." rows="18"></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-full" id="btnValidateExp">
+                                <i class="fas fa-shield-halved"></i> 해설프롬 검증 실행
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-list-check"></i> 검증 결과</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="expResult" class="validation-result">
+                                <div class="result-placeholder">
+                                    <i class="fas fa-arrow-left"></i>
+                                    <p>왼쪽에 해설프롬 출력물을 붙여넣고<br>검증 버튼을 눌러주세요</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Supabase 저장 -->
+            <div class="phase-panel" id="phaseSave">
+                <div class="step-layout">
+                    <div class="panel-card input-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-database"></i> 저장 정보</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>ID (자동 생성)</label>
+                                <input type="text" class="form-input" id="saveId" readonly />
+                            </div>
+                            <div class="form-group">
+                                <label>passage_with_markers 미리보기</label>
+                                <div class="json-preview" id="savePreview" style="min-height:200px; max-height:400px; overflow-y:auto;">
+                                    <p class="placeholder-text" style="padding:20px;">검증 완료 후 표시됩니다</p>
+                                </div>
+                            </div>
+                            <div class="save-actions">
+                                <button class="btn btn-success btn-full" id="btnSupabaseSave" disabled>
+                                    <i class="fas fa-cloud-arrow-up"></i> Supabase에 직접 INSERT
+                                </button>
+                                <div style="text-align:center; margin: 8px 0; color: var(--text-muted); font-size:11px;">또는</div>
+                                <button class="btn btn-primary btn-full" id="btnCopySQL">
+                                    <i class="fas fa-copy"></i> SQL INSERT문 복사
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-card output-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-code"></i> SQL INSERT</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="json-preview" id="sqlOutput">
+                                <pre><code id="sqlCode">-- 검증 완료 후 자동 생성됩니다</code></pre>
+                            </div>
+                            <div id="saveStatus"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2: AI 자동 생성 -->
+        <section class="step-panel" id="step2">
+            <div class="step-layout">
+                <!-- Left: AI Config -->
+                <div class="panel-card input-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-robot"></i> AI 설정</h3>
+                    </div>
+                    <div class="panel-body">
+                        <!-- AI Model Selector -->
+                        <div class="form-group">
+                            <label>AI 모델 선택</label>
+                            <div class="model-selector">
+                                <button class="model-btn active">
+                                    <i class="fas fa-brain"></i>
+                                    <span>Claude</span>
+                                    <small>Anthropic</small>
+                                </button>
+                                <button class="model-btn">
+                                    <i class="fas fa-comments"></i>
+                                    <span>GPT-4</span>
+                                    <small>OpenAI</small>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Type Selector -->
+                        <div class="form-group">
+                            <label>문제 유형</label>
+                            <select class="form-select">
+                                <option>Fill in the Blanks</option>
+                                <option>Daily 1</option>
+                                <option>Daily 2</option>
+                                <option>Academic</option>
+                                <option>Response</option>
+                                <option>Conversation</option>
+                                <option>Announcement</option>
+                                <option>Lecture</option>
+                                <option>Arrange</option>
+                                <option>Email</option>
+                                <option>Discussion</option>
+                                <option>Repeat</option>
+                                <option>Interview</option>
+                            </select>
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="form-group">
+                            <label>생성 수량</label>
+                            <div class="quantity-control">
+                                <button class="qty-btn">−</button>
+                                <input type="number" value="5" min="1" max="50" class="qty-input">
+                                <button class="qty-btn">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Prompt Preview -->
+                        <div class="form-group">
+                            <label>프롬프트 미리보기</label>
+                            <div class="prompt-preview">
+                                <p class="prompt-text">당신은 TOEFL 문제 출제 전문가입니다. 다음 규칙에 따라 "Fill in the Blanks" 유형의 문제를 5개 생성하세요...</p>
+                                <span class="prompt-badge"><i class="fas fa-lock"></i> 고정 프롬프트</span>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-full">
+                            <i class="fas fa-paper-plane"></i> AI에게 생성 요청
+                        </button>
+
+                        <!-- Progress -->
+                        <div class="generation-progress">
+                            <div class="progress-header">
+                                <span>생성 중...</span>
+                                <span>3 / 5</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 60%"></div>
+                            </div>
+                            <div class="progress-stats">
+                                <span class="stat-pass"><i class="fas fa-check"></i> Pass: 2</span>
+                                <span class="stat-fail"><i class="fas fa-xmark"></i> Fail: 1</span>
+                                <span class="stat-pending"><i class="fas fa-hourglass"></i> 대기: 2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Results -->
+                <div class="panel-card output-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-list-check"></i> 생성 결과</h3>
+                        <div class="panel-actions">
+                            <button class="btn btn-sm btn-ghost"><i class="fas fa-download"></i> 전체 다운로드</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="result-list">
+                            <!-- Result Item - Pass -->
+                            <div class="result-item pass">
+                                <div class="result-header">
+                                    <span class="result-num">#1</span>
+                                    <span class="result-badge pass"><i class="fas fa-check-circle"></i> Pass</span>
+                                </div>
+                                <div class="result-preview">
+                                    <p>"The professor's lecture on quantum mechanics was so ___ that even..."</p>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn btn-xs btn-ghost">미리보기</button>
+                                    <button class="btn btn-xs btn-ghost">JSON</button>
+                                    <button class="btn btn-xs btn-success">저장</button>
+                                </div>
+                            </div>
+
+                            <!-- Result Item - Fail -->
+                            <div class="result-item fail">
+                                <div class="result-header">
+                                    <span class="result-num">#2</span>
+                                    <span class="result-badge fail"><i class="fas fa-times-circle"></i> Fail</span>
+                                </div>
+                                <div class="result-preview">
+                                    <p class="fail-text">"Missing required field: explanation"</p>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn btn-xs btn-ghost">상세 오류</button>
+                                    <button class="btn btn-xs btn-warning">재생성</button>
+                                </div>
+                            </div>
+
+                            <!-- Result Item - Pass -->
+                            <div class="result-item pass">
+                                <div class="result-header">
+                                    <span class="result-num">#3</span>
+                                    <span class="result-badge pass"><i class="fas fa-check-circle"></i> Pass</span>
+                                </div>
+                                <div class="result-preview">
+                                    <p>"According to the passage, the primary reason for..."</p>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn btn-xs btn-ghost">미리보기</button>
+                                    <button class="btn btn-xs btn-ghost">JSON</button>
+                                    <button class="btn btn-xs btn-success">저장</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="output-actions">
+                            <button class="btn btn-success btn-full">
+                                <i class="fas fa-database"></i> Pass 항목 전체 저장 (2개)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 3: 자동 검증 -->
+        <section class="step-panel" id="step3">
+            <div class="step-layout-single">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-shield-halved"></i> 유형별 검증 규칙 관리</h3>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Validation Type Tabs -->
+                        <div class="validation-tabs">
+                            <button class="v-tab active">Fill in the Blanks</button>
+                            <button class="v-tab">Daily 1</button>
+                            <button class="v-tab">Daily 2</button>
+                            <button class="v-tab">Academic</button>
+                            <button class="v-tab">Response</button>
+                            <button class="v-tab">Conversation</button>
+                            <button class="v-tab">Announcement</button>
+                            <button class="v-tab">Lecture</button>
+                            <button class="v-tab">Arrange</button>
+                            <button class="v-tab">Email</button>
+                            <button class="v-tab">Discussion</button>
+                            <button class="v-tab">Repeat</button>
+                            <button class="v-tab">Interview</button>
+                        </div>
+
+                        <!-- Validation Rules -->
+                        <div class="validation-rules">
+                            <div class="rule-card">
+                                <div class="rule-header">
+                                    <div class="rule-info">
+                                        <i class="fas fa-check-circle rule-icon active"></i>
+                                        <span class="rule-name">필수 필드 존재</span>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="rule-desc">question, options, answer, explanation 필드가 모두 존재해야 함</p>
+                            </div>
+
+                            <div class="rule-card">
+                                <div class="rule-header">
+                                    <div class="rule-info">
+                                        <i class="fas fa-check-circle rule-icon active"></i>
+                                        <span class="rule-name">보기 개수 검증</span>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="rule-desc">options 배열이 정확히 4개여야 함</p>
+                            </div>
+
+                            <div class="rule-card">
+                                <div class="rule-header">
+                                    <div class="rule-info">
+                                        <i class="fas fa-check-circle rule-icon active"></i>
+                                        <span class="rule-name">정답 일치 검증</span>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="rule-desc">answer 값이 options 배열 안에 포함되어야 함</p>
+                            </div>
+
+                            <div class="rule-card">
+                                <div class="rule-header">
+                                    <div class="rule-info">
+                                        <i class="fas fa-check-circle rule-icon active"></i>
+                                        <span class="rule-name">해설 최소 길이</span>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="rule-desc">explanation이 최소 50자 이상이어야 함</p>
+                            </div>
+
+                            <div class="rule-card">
+                                <div class="rule-header">
+                                    <div class="rule-info">
+                                        <i class="fas fa-check-circle rule-icon active"></i>
+                                        <span class="rule-name">빈칸 포함 검증</span>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="rule-desc">question에 ___ (빈칸 표시)가 포함되어야 함</p>
+                            </div>
+
+                            <button class="btn btn-outline btn-full" style="margin-top: 16px;">
+                                <i class="fas fa-plus"></i> 검증 규칙 추가
+                            </button>
+                        </div>
+
+                        <!-- Validation Stats -->
+                        <div class="validation-stats">
+                            <h4>최근 검증 통계</h4>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-number green">87%</div>
+                                    <div class="stat-label">Pass Rate</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number blue">156</div>
+                                    <div class="stat-label">총 검증</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number green">136</div>
+                                    <div class="stat-label">Pass</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number red">20</div>
+                                    <div class="stat-label">Fail</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 4: 프롬프트 편집 -->
+        <section class="step-panel" id="step4">
+            <div class="step-layout">
+                <!-- Left: Prompt Editor -->
+                <div class="panel-card input-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-sliders"></i> 프롬프트 편집기</h3>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Type Selector -->
+                        <div class="form-group">
+                            <label>유형 선택</label>
+                            <select class="form-select">
+                                <option>Fill in the Blanks</option>
+                                <option>Daily 1</option>
+                                <option>Daily 2</option>
+                                <option>Academic</option>
+                                <option>Response</option>
+                                <option>Conversation</option>
+                                <option>Announcement</option>
+                                <option>Lecture</option>
+                                <option>Arrange</option>
+                                <option>Email</option>
+                                <option>Discussion</option>
+                                <option>Repeat</option>
+                                <option>Interview</option>
+                            </select>
+                        </div>
+
+                        <!-- Base Prompt -->
+                        <div class="form-group">
+                            <label>
+                                기본 프롬프트 
+                                <span class="label-badge">시스템</span>
+                            </label>
+                            <textarea class="text-input prompt-editor" rows="8">당신은 TOEFL 문제 출제 전문가입니다. 다음 규칙에 따라 "Fill in the Blanks" 유형의 문제를 생성하세요.
+
+[규칙]
+1. 문장 내에 하나의 빈칸(___)을 포함할 것
+2. 보기는 4개 (A, B, C, D)
+3. 정답과 오답의 난이도 차이가 적절할 것
+4. TOEFL 수준의 학술적 어휘를 사용할 것</textarea>
+                        </div>
+
+                        <!-- Custom Rules -->
+                        <div class="form-group">
+                            <label>
+                                추가 규칙 
+                                <span class="label-badge custom">커스텀</span>
+                            </label>
+                            <div class="custom-rules">
+                                <div class="custom-rule-item">
+                                    <input type="text" class="rule-input" value="과학/기술 주제 위주로 출제" />
+                                    <button class="btn btn-xs btn-danger"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <div class="custom-rule-item">
+                                    <input type="text" class="rule-input" value="해설에 오답 분석 포함" />
+                                    <button class="btn btn-xs btn-danger"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline btn-sm" style="margin-top: 8px;">
+                                <i class="fas fa-plus"></i> 규칙 추가
+                            </button>
+                        </div>
+
+                        <!-- Output Format -->
+                        <div class="form-group">
+                            <label>
+                                출력 형식 
+                                <span class="label-badge">JSON 스키마</span>
+                            </label>
+                            <textarea class="text-input code-editor" rows="6">{
+  "question": "string",
+  "options": ["A", "B", "C", "D"],
+  "answer": "string",
+  "explanation": "string"
+}</textarea>
+                        </div>
+
+                        <button class="btn btn-primary btn-full">
+                            <i class="fas fa-save"></i> 프롬프트 저장
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Preview -->
+                <div class="panel-card output-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-eye"></i> 최종 프롬프트 미리보기</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="final-prompt-preview">
+                            <div class="prompt-section">
+                                <span class="prompt-tag system">SYSTEM</span>
+                                <p>당신은 TOEFL 문제 출제 전문가입니다. 다음 규칙에 따라 "Fill in the Blanks" 유형의 문제를 생성하세요.</p>
+                            </div>
+                            <div class="prompt-section">
+                                <span class="prompt-tag rules">RULES</span>
+                                <ol>
+                                    <li>문장 내에 하나의 빈칸(___)을 포함할 것</li>
+                                    <li>보기는 4개 (A, B, C, D)</li>
+                                    <li>정답과 오답의 난이도 차이가 적절할 것</li>
+                                    <li>TOEFL 수준의 학술적 어휘를 사용할 것</li>
+                                </ol>
+                            </div>
+                            <div class="prompt-section">
+                                <span class="prompt-tag custom">CUSTOM</span>
+                                <ol>
+                                    <li>과학/기술 주제 위주로 출제</li>
+                                    <li>해설에 오답 분석 포함</li>
+                                </ol>
+                            </div>
+                            <div class="prompt-section">
+                                <span class="prompt-tag format">FORMAT</span>
+                                <pre><code>{
+  "question": "string",
+  "options": ["A", "B", "C", "D"],
+  "answer": "string",
+  "explanation": "string"
+}</code></pre>
+                            </div>
+                        </div>
+                        <div class="prompt-meta">
+                            <span><i class="fas fa-text-width"></i> 총 토큰: ~320</span>
+                            <span><i class="fas fa-clock"></i> 마지막 수정: 방금</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Panel -->
+        <section class="step-panel" id="stepHistory">
+            <div class="step-layout-single">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-clock-rotate-left"></i> 생성 히스토리</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p class="placeholder-text"><i class="fas fa-inbox"></i><br>후속 구현 예정</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Panel -->
+        <section class="step-panel" id="stepSettings">
+            <div class="step-layout-single">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-gear"></i> 설정</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4>Supabase URL</h4>
+                                    <p>프로젝트 URL</p>
+                                </div>
+                                <input type="text" class="form-input" placeholder="https://xxx.supabase.co" />
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4>Supabase Anon Key</h4>
+                                    <p>클라이언트용 공개 키</p>
+                                </div>
+                                <input type="password" class="form-input" placeholder="eyJhbGci..." />
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4>AI API Endpoint</h4>
+                                    <p>Vercel Serverless 함수 URL</p>
+                                </div>
+                                <input type="text" class="form-input" placeholder="/api/generate" />
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4>자동 폐기 (Fail)</h4>
+                                    <p>검증 실패 시 자동으로 폐기하고 재생성</p>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <h4>최대 재시도 횟수</h4>
+                                    <p>Fail 시 자동 재생성 최대 횟수</p>
+                                </div>
+                                <input type="number" class="form-input" value="3" style="width: 80px;" />
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top: 24px;">
+                            <i class="fas fa-save"></i> 설정 저장
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="js/validators/fb-generation.js"></script>
+<script src="js/validators/fb-explanation.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
